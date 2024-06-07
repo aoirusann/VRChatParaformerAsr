@@ -29,8 +29,12 @@ class Setting:
         self.api_key = ""
         self.disfluency_removal_enabled = False
 
+    def copy_from(self, another: "Setting") -> None:
+        for key, value in another.__dict__.items():
+            self.__dict__[key] = value
+
     def serialize(self) -> str:
-        return json.dumps(self)
+        return json.dumps(self.__dict__)
 
     def deserialize(self, s: str) -> None:
         d = json.loads(s)
@@ -145,10 +149,16 @@ def get_micro_id2name()->dict[int, str]:
     return device_id2name
 
 @ui.page("/")
-def homepage():
+async def homepage():
     # Default Setting
     setting = Setting()
     setting.api_key = os.environ.get("API_KEY")
+
+    # Try load stored setting from localStorage
+    saved_setting: None|str = app.storage.user.get("VRCPASR_setting", None)
+    if saved_setting:
+        logger.info(f"Load setting from app.storage.user: {saved_setting}")
+        setting.deserialize(saved_setting)
 
     # Declare all ui elements
     ctl_vrchat_ip = ui.input(
@@ -176,6 +186,8 @@ def homepage():
     ).bind_value(setting, "api_key")
     ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled").bind_value(setting, "disfluency_removal_enabled")
 
+    load_default_setting_btn = ui.button("Load Default Setting").on_click(lambda: setting.copy_from(Setting())) # TODO make small to avoid press  accidently
+    save_setting_btn = ui.button("Save Setting")
     start_btn = ui.button("Start")
     stop_btn = ui.button("Stop")
 
@@ -189,6 +201,7 @@ def homepage():
         ctl_vrchat_ip, ctl_vrchat_port,
         ctl_micro_device_id, ctl_api_key,
         ctl_disfluency_removal_enabled,
+        load_default_setting_btn,
         start_btn
     ]
     for ctl in ctls_enabled_when_worker_is_None:
@@ -199,12 +212,19 @@ def homepage():
     for ctl in ctls_disabled_when_worker_is_None:
         ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
 
-    # Bind onclick
+    # Bind onclick which depends on other ui controls
+    def on_save_setting_btn_clicked():
+        s: str = setting.serialize()
+        logger.info(f"Save setting into app.storage.user: {s}")
+        app.storage.user["VRCPASR_setting"] = s
+    save_setting_btn.on_click(on_save_setting_btn_clicked)
+
     def on_start_btn_clicked():
         ctx["stt_worker"] = asyncio.create_task(ARSWorker(setting))
         ui.update(start_btn)
         ui.update(stop_btn)
     start_btn.on_click(on_start_btn_clicked)
+
     def on_end_btn_clicked():
         if ctx["stt_worker"] != None:
             ctx["stt_worker"].cancel()
@@ -248,7 +268,7 @@ if __name__ in {"__main__", "__mp_main__"}:
 
     # =======================
     # UI
-    ui.run(reload=True)
+    ui.run(reload=True, storage_secret="12345") # TODO better storage_secret
 
     app.on_startup(lambda: logger.debug("NiceGUI startup"))
     app.on_connect(lambda: logger.debug("NiceGUI connect"))
