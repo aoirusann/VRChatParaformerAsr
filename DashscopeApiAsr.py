@@ -20,13 +20,14 @@ class DashscopeApiAsr:
     def __init__(self):
         self.recognition: Recognition = None
 
-    def start(self, api_key: str, callback: RecognitionCallback = DefaultCallback()):
+    def start(self, api_key: str, callback: RecognitionCallback = DefaultCallback(), disfluency_removal_enabled=False):
         dashscope.api_key = api_key
         self.recognition = Recognition(
             model='paraformer-realtime-v1',
             format='pcm',
             sample_rate=16000,
-            callback=callback
+            callback=callback,
+            disfluency_removal_enabled=disfluency_removal_enabled,
         )
         self.recognition.start()
 

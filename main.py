@@ -1,4 +1,6 @@
 from DashscopeApiAsr import DashscopeApiAsr, RecognitionCallback, RecognitionResult
+import nicegui.elements
+import nicegui.elements.input
 from nicegui import ui
 import re
 import os
@@ -155,8 +157,8 @@ def homepage():
         precision=0,
         step=1,
     ).bind_value(ctx, "vrchat_port")
-    ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(ctx, "osc_bypass_keyboard")
-    ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(ctx, "osc_enableSFX")
+    ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(ctx, "osc_bypass_keyboard"),
+    ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(ctx, "osc_enableSFX"),
     ctl_micro_device_id = ui.select(
         options=get_micro_id2name(),
         label="Micro Device",
@@ -167,11 +169,25 @@ def homepage():
     ).bind_value(ctx, "api_key")
     ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled").bind_value(ctx, "disfluency_removal_enabled")
 
-    # TODO test
+    start_btn = ui.button("Start")
+    stop_btn = ui.button("Stop")
 
-    start_btn = ui.button("Start").bind_enabled_from(ctx, "stt_worker", lambda worker: worker==None)
-    stop_btn = ui.button("Stop").bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
+    # Bind enabled
+    ctls_enabled_when_worker_is_None: list[nicegui.elements.input.DisableableElement] = [
+        ctl_vrchat_ip, ctl_vrchat_port,
+        ctl_micro_device_id, ctl_api_key,
+        ctl_disfluency_removal_enabled,
+        start_btn
+    ]
+    for ctl in ctls_enabled_when_worker_is_None:
+        ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker==None)
+    ctls_disabled_when_worker_is_None: list[nicegui.elements.input.DisableableElement] = [
+        stop_btn
+    ]
+    for ctl in ctls_disabled_when_worker_is_None:
+        ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
 
+    # Bind onclick
     def on_start_btn_clicked():
         ctx.stt_worker = asyncio.create_task(ARSWorker(ctx))
         ui.update(start_btn)
