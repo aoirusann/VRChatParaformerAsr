@@ -9,6 +9,8 @@ import asyncio
 import pythonosc
 import pythonosc.udp_client
 import multiprocessing
+import platform
+import hashlib
 import json
 import logging
 import logging.handlers
@@ -157,7 +159,7 @@ async def homepage():
     # Try load stored setting from localStorage
     saved_setting: None|str = app.storage.user.get("VRCPASR_setting", None)
     if saved_setting:
-        logger.info(f"Load setting from app.storage.user: {saved_setting}")
+        logger.info(f"Load setting from app.storage.user for user {app.storage.browser['id']}: {saved_setting}")
         setting.deserialize(saved_setting)
 
     # Declare all ui elements
@@ -174,8 +176,8 @@ async def homepage():
         precision=0,
         step=1,
     ).bind_value(setting, "vrchat_port")
-    ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard"),
-    ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX"),
+    ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard")
+    ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX")
     ctl_micro_device_id = ui.select(
         options=get_micro_id2name(),
         label="Micro Device",
@@ -186,8 +188,7 @@ async def homepage():
     ).bind_value(setting, "api_key")
     ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled").bind_value(setting, "disfluency_removal_enabled")
 
-    load_default_setting_btn = ui.button("Load Default Setting").on_click(lambda: setting.copy_from(Setting())) # TODO make small to avoid press  accidently
-    save_setting_btn = ui.button("Save Setting")
+    load_default_setting_btn = ui.button("Load Default Setting")
     start_btn = ui.button("Start")
     stop_btn = ui.button("Stop")
 
@@ -212,26 +213,33 @@ async def homepage():
     for ctl in ctls_disabled_when_worker_is_None:
         ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
 
-    # Bind onclick which depends on other ui controls
-    def on_save_setting_btn_clicked():
-        s: str = setting.serialize()
-        logger.info(f"Save setting into app.storage.user: {s}")
-        app.storage.user["VRCPASR_setting"] = s
-    save_setting_btn.on_click(on_save_setting_btn_clicked)
+    # Bind onclicked
+    def on_load_default_setting_btn_clicked():
+        setting.copy_from()
+        logger.info("Default setting is load: " + setting.serialize())
+    load_default_setting_btn.on_click(on_load_default_setting_btn_clicked)
 
     def on_start_btn_clicked():
+        # Save Setting before start
+        s: str = setting.serialize()
+        logger.info(f"Save setting into app.storage.user for user {app.storage.browser['id']}: {s}")
+        app.storage.user["VRCPASR_setting"] = s
+        # Start async ARS worker
         ctx["stt_worker"] = asyncio.create_task(ARSWorker(setting))
+        # Update UI
         ui.update(start_btn)
         ui.update(stop_btn)
     start_btn.on_click(on_start_btn_clicked)
 
-    def on_end_btn_clicked():
+    def on_stop_btn_clicked():
         if ctx["stt_worker"] != None:
+            # Cancel async ARS worker
             ctx["stt_worker"].cancel()
             ctx["stt_worker"] = None
+            # Update UI
             ui.update(start_btn)
             ui.update(stop_btn)
-    stop_btn.on_click(on_end_btn_clicked)
+    stop_btn.on_click(on_stop_btn_clicked)
 
 
 if __name__ in {"__main__", "__mp_main__"}:
@@ -268,10 +276,21 @@ if __name__ in {"__main__", "__mp_main__"}:
 
     # =======================
     # UI
-    ui.run(reload=True, storage_secret="12345") # TODO better storage_secret
 
+    # Storage key
+    def get_machine_identifier():
+        system_info = platform.node() + platform.machine() + platform.processor()
+        return hashlib.sha256(system_info.encode()).hexdigest()
+    storage_key = os.environ.get("STORAGE_KEY", None) # Perfer get from environment var
+    if not storage_key:
+        storage_key = get_machine_identifier() # Otherwise use machine identifier
+
+    # Register NiceGUI's events
     app.on_startup(lambda: logger.debug("NiceGUI startup"))
     app.on_connect(lambda: logger.debug("NiceGUI connect"))
     app.on_disconnect(lambda: logger.debug("NiceGUI disconnect"))
     app.on_shutdown(lambda: logger.debug("NiceGUI shutdown"))
     app.on_exception(lambda e: logger.error(f"NiceGUI exception: {e}"))
+
+    # Start UI
+    ui.run(reload=True, storage_secret=storage_key)
