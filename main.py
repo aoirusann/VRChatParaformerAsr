@@ -194,7 +194,7 @@ async def homepage():
             ctl_dark_mode = ui.checkbox("UI dark mode")
     with ui.card():
         ui.label("Log:")
-        ctl_log = ui.log(max_lines=None)
+        ctl_log = ui.log(max_lines=100)
 
     # Declare dialog ui
     with ui.dialog() as load_default_setting_dialog, ui.card():
@@ -339,4 +339,4 @@ if __name__ in {"__main__", "__mp_main__"}:
     app.on_exception(lambda e: logger.error(f"NiceGUI exception: {e}"))
 
     # Start UI
-    ui.run(reload=True, storage_secret=storage_key)
+    ui.run(reload=False, storage_secret=storage_key)

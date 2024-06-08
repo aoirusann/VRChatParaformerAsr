@@ -1,7 +1,16 @@
+# vscode
 .vscode
-.git
+
+# nicegui
 .nicegui
+
+# python
 __pycache__
 venv
 
+# pyinstaller
+build
+dist
+
+# log
 vrchat_paraformer_asr.log*
