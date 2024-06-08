@@ -158,30 +158,30 @@ async def homepage():
     # Declare page ui
     with ui.row():
         ctl_vrchat_ip = ui.input(
-            label="VRChat IP",
+            label="VRChat OSC IP",
             placeholder="127.0.0.1",
             validation={"Invalid IP address(e.g. 127.0.0.1)": is_valid_ip},
-        ).bind_value(setting, "vrchat_ip")
+        )
         ctl_vrchat_port = ui.number(
-            label="VRChat OSC port",
+            label="VRChat OSC Port",
             placeholder="9000",
             min=0,
             max=65535,
             precision=0,
             step=1,
-        ).bind_value(setting, "vrchat_port")
+        )
     with ui.row():
-        ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard")
-        ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX")
+        ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard").tooltip("Disable if you want to open the keyboard when transcription is done.")
+        ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX").tooltip("Disable if the sound effect when sending message is not needed.")
     ctl_micro_device_id = ui.select(
         options=get_micro_id2name(),
         label="Micro Device",
         with_input=True,
-    ).bind_value(setting, "micro_device_id")
+    )
     with ui.row():
         ctl_api_key = ui.input(
             label="Dashscope API Key",
-        ).bind_value(setting, "api_key")
+        )
 
     with ui.row():
         start_btn = ui.button("Start", color="green")
