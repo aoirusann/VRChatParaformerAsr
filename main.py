@@ -87,15 +87,13 @@ class MicCollector:
     def __del__(self):
         self.stop()
 
-    def start(self, callback):
+    def start(self):
         self.mic = pyaudio.PyAudio()
         self.stream = self.mic.open(format=pyaudio.paInt16,
             channels=1,
             input_device_index=self.setting.micro_device_id,
             rate=16000,
             input=True,
-            stream_callback=callback,
-            frames_per_buffer=3200
             )
 
     def stop(self):
@@ -107,6 +105,9 @@ class MicCollector:
             self.mic.terminate()
             self.mic = None
 
+    async def read(self):
+        return await asyncio.to_thread(self.stream.read, 3200)
+
 # Audio and Speech Recognition Workhorse
 # Keep running until `Stop`
 async def ARSWorker(setting: Setting):
@@ -114,15 +115,13 @@ async def ARSWorker(setting: Setting):
     asr = DashscopeApiAsr()
     asr.start(api_key=setting.api_key, callback=asr_callback)
 
-    def mic_callback(in_data, frame_count, time_info, status_flags):
-        asr.send_audio_frame(in_data)
-        return None, pyaudio.paContinue
     mic = MicCollector(setting)
-    mic.start(mic_callback)
+    mic.start()
 
     try:
-        while mic.stream.is_active():
-            await asyncio.sleep(0.01)
+        while True:
+            audio_data = await mic.read()
+            asr.send_audio_frame(audio_data)
     finally:
         mic.stop()
         asr.stop()
