@@ -7,6 +7,6 @@
 * [x] pyinstaller package
 	* `_ssl` import error
 		* Conda is unsupported by pyinstaller: https://github.com/pyinstaller/pyinstaller/issues/7510	
-* [ ] VRChat typing indicator
+* [x] VRChat typing indicator
 * [ ] document for API key
 * [ ] chinese

@@ -65,6 +65,7 @@ class VRChatOscCallback(RecognitionCallback):
 
     def on_event(self, result: RecognitionResult) -> None:
         # Get full sentence
+        self.osc_client.send_message("/chatbox/typing", [True])
         sen = result.get_sentence()
         logger.debug(f'RecognitionCallback sentence: {sen}', )
         # If the sentence is completed, update last_text
@@ -74,6 +75,7 @@ class VRChatOscCallback(RecognitionCallback):
             logger.info(f"[Transcribed] {cur_text}")
             # Merge with the last complete text
             text = self.last_text + "\n" + cur_text
+            self.osc_client.send_message("/chatbox/typing", [False])
             self.osc_client.send_message("/chatbox/input", [text, self.setting.osc_bypass_keyboard, self.setting.osc_enableSFX])
             # Update last_text
             self.last_text = cur_text
