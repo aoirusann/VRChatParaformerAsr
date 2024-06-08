@@ -19,6 +19,8 @@ logger = logging.getLogger("VRChatParaformerAsr")
 class Setting:
     def __init__(self) -> None:
         # Setting ====
+        # ui
+        self.dark_mode = True
         # vrchat: should recreate `VRChatOscCallback` and restart `DashscopeApiAsr` after change
         self.vrchat_ip = r"127.0.0.1"
         self.vrchat_port = 9000
@@ -161,7 +163,7 @@ async def homepage():
             label="VRChat OSC IP",
             placeholder="127.0.0.1",
             validation={"Invalid IP address(e.g. 127.0.0.1)": is_valid_ip},
-        )
+        ).tooltip("VRChat OSC IP")
         ctl_vrchat_port = ui.number(
             label="VRChat OSC Port",
             placeholder="9000",
@@ -169,10 +171,10 @@ async def homepage():
             max=65535,
             precision=0,
             step=1,
-        )
+        ).tooltip("VRChat OSC Port")
     with ui.row():
-        ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard").tooltip("Disable if you want to open the keyboard when transcription is done.")
-        ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX").tooltip("Disable if the sound effect when sending message is not needed.")
+        ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").tooltip("Disable if you want to open the keyboard when transcription is done.")
+        ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").tooltip("Disable if the sound effect when sending message is not needed.")
     ctl_micro_device_id = ui.select(
         options=get_micro_id2name(),
         label="Micro Device",
@@ -184,12 +186,13 @@ async def homepage():
         )
 
     with ui.row():
-        start_btn = ui.button("Start", color="green")
-        stop_btn = ui.button("Stop", color="red")
+        btn_start = ui.button("Start", color="green")
+        btn_stop = ui.button("Stop", color="red")
     with ui.expansion("Usually not used"):
         with ui.row():
-            load_default_setting_btn = ui.button("Load Default Setting")
-            ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled").bind_value(setting, "disfluency_removal_enabled")
+            btn_load_default_setting = ui.button("Load Default Setting")
+            ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled")
+            ctl_dark_mode = ui.checkbox("UI dark mode")
     with ui.card():
         ui.label("Log:")
         ctl_log = ui.log(max_lines=None)
@@ -207,6 +210,8 @@ async def homepage():
     }
 
     # Bind value
+    ui.dark_mode().bind_value(setting, "dark_mode")
+    ctl_dark_mode.bind_value(setting, "dark_mode")
     ctl_vrchat_ip.bind_value(setting, "vrchat_ip")
     ctl_vrchat_port.bind_value(setting, "vrchat_port")
     ctl_osc_bypass_keyboard.bind_value(setting, "osc_bypass_keyboard")
@@ -220,13 +225,13 @@ async def homepage():
         ctl_vrchat_ip, ctl_vrchat_port,
         ctl_micro_device_id, ctl_api_key,
         ctl_disfluency_removal_enabled,
-        load_default_setting_btn,
-        start_btn
+        btn_load_default_setting,
+        btn_start
     ]
     for ctl in ctls_enabled_when_worker_is_None:
         ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker==None)
     ctls_disabled_when_worker_is_None: list[nicegui.elements.input.DisableableElement] = [
-        stop_btn
+        btn_stop
     ]
     for ctl in ctls_disabled_when_worker_is_None:
         ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
@@ -236,7 +241,7 @@ async def homepage():
         if await load_default_setting_dialog:
             setting.copy_from(Setting())
             logger.info("Default setting is load: " + setting.serialize())
-    load_default_setting_btn.on_click(on_clicked_load_default_setting_btn)
+    btn_load_default_setting.on_click(on_clicked_load_default_setting_btn)
 
     def on_clicked_start_btn():
         # Save Setting before start
@@ -246,9 +251,9 @@ async def homepage():
         # Start async ARS worker
         ctx["stt_worker"] = asyncio.create_task(ARSWorker(setting))
         # Update UI
-        ui.update(start_btn)
-        ui.update(stop_btn)
-    start_btn.on_click(on_clicked_start_btn)
+        ui.update(btn_start)
+        ui.update(btn_stop)
+    btn_start.on_click(on_clicked_start_btn)
 
     def on_clicked_stop_btn():
         if ctx["stt_worker"] != None:
@@ -256,9 +261,9 @@ async def homepage():
             ctx["stt_worker"].cancel()
             ctx["stt_worker"] = None
             # Update UI
-            ui.update(start_btn)
-            ui.update(stop_btn)
-    stop_btn.on_click(on_clicked_stop_btn)
+            ui.update(btn_start)
+            ui.update(btn_stop)
+    btn_stop.on_click(on_clicked_stop_btn)
 
     # Attach to logger
     class LogElementHandler(logging.Handler):
