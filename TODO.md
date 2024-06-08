@@ -1,1 +1,2 @@
-* browser local storage
+* [x] browser local storage
+* [x] log view

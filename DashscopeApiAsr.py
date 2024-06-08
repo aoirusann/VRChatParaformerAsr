@@ -19,6 +19,9 @@ class DefaultCallback(RecognitionCallback):
 class DashscopeApiAsr:
     def __init__(self):
         self.recognition: Recognition = None
+    def __del__(self):
+        if self.recognition:
+            self.recognition.stop()
 
     def start(self, api_key: str, callback: RecognitionCallback = DefaultCallback(), disfluency_removal_enabled=False):
         dashscope.api_key = api_key

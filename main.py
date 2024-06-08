@@ -154,48 +154,66 @@ def get_micro_id2name()->dict[int, str]:
 async def homepage():
     # Default Setting
     setting = Setting()
-    setting.api_key = os.environ.get("API_KEY")
 
-    # Try load stored setting from localStorage
-    saved_setting: None|str = app.storage.user.get("VRCPASR_setting", None)
-    if saved_setting:
-        logger.info(f"Load setting from app.storage.user for user {app.storage.browser['id']}: {saved_setting}")
-        setting.deserialize(saved_setting)
-
-    # Declare all ui elements
-    ctl_vrchat_ip = ui.input(
-        label="VRChat IP",
-        placeholder="127.0.0.1",
-        validation={"Invalid IP address": is_valid_ip},
-    ).bind_value(setting, "vrchat_ip")
-    ctl_vrchat_port = ui.number(
-        label="VRChat OSC port",
-        placeholder="9000",
-        min=0,
-        max=65535,
-        precision=0,
-        step=1,
-    ).bind_value(setting, "vrchat_port")
-    ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard")
-    ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX")
+    # Declare page ui
+    with ui.row():
+        ctl_vrchat_ip = ui.input(
+            label="VRChat IP",
+            placeholder="127.0.0.1",
+            validation={"Invalid IP address(e.g. 127.0.0.1)": is_valid_ip},
+        ).bind_value(setting, "vrchat_ip")
+        ctl_vrchat_port = ui.number(
+            label="VRChat OSC port",
+            placeholder="9000",
+            min=0,
+            max=65535,
+            precision=0,
+            step=1,
+        ).bind_value(setting, "vrchat_port")
+    with ui.row():
+        ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").bind_value(setting, "osc_bypass_keyboard")
+        ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").bind_value(setting, "osc_enableSFX")
     ctl_micro_device_id = ui.select(
         options=get_micro_id2name(),
         label="Micro Device",
         with_input=True,
     ).bind_value(setting, "micro_device_id")
-    ctl_api_key = ui.input(
-        label="Dashscope API Key",
-    ).bind_value(setting, "api_key")
-    ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled").bind_value(setting, "disfluency_removal_enabled")
+    with ui.row():
+        ctl_api_key = ui.input(
+            label="Dashscope API Key",
+        ).bind_value(setting, "api_key")
 
-    load_default_setting_btn = ui.button("Load Default Setting")
-    start_btn = ui.button("Start")
-    stop_btn = ui.button("Stop")
+    with ui.row():
+        start_btn = ui.button("Start", color="green")
+        stop_btn = ui.button("Stop", color="red")
+    with ui.expansion("Usually not used"):
+        with ui.row():
+            load_default_setting_btn = ui.button("Load Default Setting")
+            ctl_disfluency_removal_enabled = ui.checkbox("disfluency_removal_enabled").bind_value(setting, "disfluency_removal_enabled")
+    with ui.card():
+        ui.label("Log:")
+        ctl_log = ui.log(max_lines=None)
+
+    # Declare dialog ui
+    with ui.dialog() as load_default_setting_dialog, ui.card():
+        ui.label("Really want to load default setting?\nThis will override all your current settings!")
+        with ui.row() as r:
+            ui.button("Yes").on_click(lambda: load_default_setting_dialog.submit(True))
+            ui.button("No").on_click(lambda: load_default_setting_dialog.submit(False))
 
     # UI Runtime Context
     ctx = {
         "stt_worker": None
     }
+
+    # Bind value
+    ctl_vrchat_ip.bind_value(setting, "vrchat_ip")
+    ctl_vrchat_port.bind_value(setting, "vrchat_port")
+    ctl_osc_bypass_keyboard.bind_value(setting, "osc_bypass_keyboard")
+    ctl_osc_enableSFX.bind_value(setting, "osc_enableSFX")
+    ctl_micro_device_id.bind_value(setting, "micro_device_id")
+    ctl_api_key.bind_value(setting, "api_key")
+    ctl_disfluency_removal_enabled.bind_value(setting, "disfluency_removal_enabled")
 
     # Bind enabled
     ctls_enabled_when_worker_is_None: list[nicegui.elements.input.DisableableElement] = [
@@ -214,12 +232,13 @@ async def homepage():
         ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
 
     # Bind onclicked
-    def on_load_default_setting_btn_clicked():
-        setting.copy_from()
-        logger.info("Default setting is load: " + setting.serialize())
-    load_default_setting_btn.on_click(on_load_default_setting_btn_clicked)
+    async def on_clicked_load_default_setting_btn():
+        if await load_default_setting_dialog:
+            setting.copy_from(Setting())
+            logger.info("Default setting is load: " + setting.serialize())
+    load_default_setting_btn.on_click(on_clicked_load_default_setting_btn)
 
-    def on_start_btn_clicked():
+    def on_clicked_start_btn():
         # Save Setting before start
         s: str = setting.serialize()
         logger.info(f"Save setting into app.storage.user for user {app.storage.browser['id']}: {s}")
@@ -229,9 +248,9 @@ async def homepage():
         # Update UI
         ui.update(start_btn)
         ui.update(stop_btn)
-    start_btn.on_click(on_start_btn_clicked)
+    start_btn.on_click(on_clicked_start_btn)
 
-    def on_stop_btn_clicked():
+    def on_clicked_stop_btn():
         if ctx["stt_worker"] != None:
             # Cancel async ARS worker
             ctx["stt_worker"].cancel()
@@ -239,7 +258,30 @@ async def homepage():
             # Update UI
             ui.update(start_btn)
             ui.update(stop_btn)
-    stop_btn.on_click(on_stop_btn_clicked)
+    stop_btn.on_click(on_clicked_stop_btn)
+
+    # Attach to logger
+    class LogElementHandler(logging.Handler):
+        """A logging handler that emits messages to a log element."""
+        def __init__(self, element: ui.log, level: int = logging.NOTSET) -> None:
+            self.element = element
+            super().__init__(level)
+        def emit(self, record: logging.LogRecord) -> None:
+            try:
+                msg = self.format(record)
+                self.element.push(msg)
+            except Exception:
+                self.handleError(record)
+    log_format = '[%(levelname)s] %(message)s'
+    log_handler = LogElementHandler(ctl_log)
+    log_handler.setFormatter(logging.Formatter(log_format))
+    logger.addHandler(log_handler)
+
+    # Try load stored setting from localStorage
+    saved_setting: None|str = app.storage.user.get("VRCPASR_setting", None)
+    if saved_setting:
+        logger.info(f"Load setting from app.storage.user for user {app.storage.browser['id']}: {saved_setting}")
+        setting.deserialize(saved_setting)
 
 
 if __name__ in {"__main__", "__mp_main__"}:
