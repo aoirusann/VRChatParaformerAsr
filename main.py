@@ -15,6 +15,7 @@ import json
 import logging
 import logging.handlers
 logger = logging.getLogger("VRChatParaformerAsr")
+main_event_loop = None
 
 class Setting:
     def __init__(self) -> None:
@@ -46,8 +47,9 @@ class Setting:
             self.__dict__[key] = value
 
 class VRChatOscCallback(DashscopeCustomRecognitionCallback):
-    def __init__(self, setting: Setting):
+    def __init__(self, setting: Setting, ctx):
         self.setting = setting
+        self.ctx = ctx
         self.osc_client = pythonosc.udp_client.SimpleUDPClient(self.setting.vrchat_ip, self.setting.vrchat_port)
         self.last_text = ""
 
@@ -59,6 +61,8 @@ class VRChatOscCallback(DashscopeCustomRecognitionCallback):
 
     def on_response_timeout(self, result: RecognitionResult):
         logger.info("RecognitionCallback is shutdown by the ASR server.")
+        self.ctx["stt_worker"] = None
+        self.ctx["stt_worker"] = asyncio.run_coroutine_threadsafe(ARSWorker(self.setting, self.ctx), main_event_loop)
 
     def on_error(self, result: RecognitionResult) -> None:
         logger.error(result)
@@ -115,17 +119,19 @@ class MicCollector:
 
 # Audio and Speech Recognition Workhorse
 # Keep running until `Stop`
-async def ARSWorker(setting: Setting):
+async def ARSWorker(setting: Setting, ctx):
     mic = MicCollector(setting)
     mic.start()
 
     try:
-        asr_callback = VRChatOscCallback(setting)
+        asr_callback = VRChatOscCallback(setting, ctx)
         asr = DashscopeApiAsr()
         asr.start(api_key=setting.api_key, callback=asr_callback)
 
         while True:
             audio_data = await mic.read()
+            if asr.is_stopped():
+                break
             asr.send_audio_frame(audio_data)
     finally:
         mic.stop()
@@ -159,6 +165,9 @@ def get_micro_id2name()->dict[int, str]:
 
 @ui.page("/")
 async def homepage():
+    global main_event_loop
+    main_event_loop = asyncio.get_running_loop()
+
     # Default Setting
     setting = Setting()
 
@@ -254,7 +263,7 @@ async def homepage():
         logger.info(f"Save setting into app.storage.user for user {app.storage.browser['id']}: {s}")
         app.storage.user["VRCPASR_setting"] = s
         # Start async ARS worker
-        ctx["stt_worker"] = asyncio.create_task(ARSWorker(setting))
+        ctx["stt_worker"] = asyncio.create_task(ARSWorker(setting, ctx))
         # Update UI
         ui.update(btn_start)
         ui.update(btn_stop)

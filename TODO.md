@@ -10,5 +10,6 @@
 * [x] VRChat typing indicator
 * [ ] document for API key
 * [ ] chinese
-* [ ] Handle `ResponseTimeout` bug
+* [x] Handle `ResponseTimeout` bug
+	* The connection will be shutdown by the remote server if there has been no audio data sent for 60 seconds.
 * [ ] Decontruct the context when client disconnected.
