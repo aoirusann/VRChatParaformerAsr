@@ -113,20 +113,21 @@ class MicCollector:
 # Audio and Speech Recognition Workhorse
 # Keep running until `Stop`
 async def ARSWorker(setting: Setting):
-    asr_callback = VRChatOscCallback(setting)
-    asr = DashscopeApiAsr()
-    asr.start(api_key=setting.api_key, callback=asr_callback)
-
     mic = MicCollector(setting)
     mic.start()
 
     try:
+        asr_callback = VRChatOscCallback(setting)
+        asr = DashscopeApiAsr()
+        asr.start(api_key=setting.api_key, callback=asr_callback)
+
         while True:
             audio_data = await mic.read()
             asr.send_audio_frame(audio_data)
     finally:
         mic.stop()
-        asr.stop()
+        if asr and not asr.is_stopped():
+            asr.stop()
 
 # ===============
 # UI

@@ -10,3 +10,5 @@
 * [x] VRChat typing indicator
 * [ ] document for API key
 * [ ] chinese
+* [ ] Handle `ResponseTimeout` bug
+* [ ] Decontruct the context when client disconnected.

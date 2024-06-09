@@ -1,8 +1,8 @@
 # For prerequisites running the following sample, visit https://help.aliyun.com/document_detail/611472.html
 
 import dashscope
-from dashscope.audio.asr import (Recognition, RecognitionCallback,
-                                 RecognitionResult)
+from dashscope.audio.asr import RecognitionCallback, RecognitionResult
+from DashscopeCustomRecognition import DashscopeCustomRecognition
 
 
 class DefaultCallback(RecognitionCallback):
@@ -18,14 +18,14 @@ class DefaultCallback(RecognitionCallback):
 
 class DashscopeApiAsr:
     def __init__(self):
-        self.recognition: Recognition = None
+        self.recognition: DashscopeCustomRecognition = None
     def __del__(self):
-        if self.recognition:
+        if self.recognition and not self.recognition.is_stopped():
             self.recognition.stop()
 
     def start(self, api_key: str, callback: RecognitionCallback = DefaultCallback(), disfluency_removal_enabled=False):
         dashscope.api_key = api_key
-        self.recognition = Recognition(
+        self.recognition = DashscopeCustomRecognition(
             model='paraformer-realtime-v1',
             format='pcm',
             sample_rate=16000,
@@ -36,6 +36,9 @@ class DashscopeApiAsr:
 
     def stop(self):
         self.recognition.stop()
+    
+    def is_stopped(self):
+        return self.recognition.is_stopped()
 
     def send_audio_frame(self, audio_data):
         self.recognition.send_audio_frame(audio_data)
