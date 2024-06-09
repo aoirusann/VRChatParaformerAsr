@@ -15,6 +15,10 @@ from dashscope.protocol.websocket import WebsocketStreamingMode
 
 from dashscope.audio.asr import RecognitionCallback, RecognitionResult
 
+class DashscopeCustomRecognitionCallback(RecognitionCallback):
+    def on_response_timeout(self, result: RecognitionResult):
+        pass
+
 # Almost identity with dashscope.audio.asr.Recogntion
 # But has no timeout event when long time not receive audio-data
 class DashscopeCustomRecognition(BaseApi):
@@ -47,7 +51,7 @@ class DashscopeCustomRecognition(BaseApi):
 
     def __init__(self,
                  model: str,
-                 callback: RecognitionCallback,
+                 callback: DashscopeCustomRecognitionCallback,
                  format: str,
                  sample_rate: int,
                  workspace: str = None,
@@ -103,6 +107,13 @@ class DashscopeCustomRecognition(BaseApi):
                         RecognitionResult(
                             RecognitionResponse.from_api_response(part),
                             usages=useags))
+            elif part.status_code == 44 and part.code=="ResponseTimeout":
+                self._running = False
+                self._stream_data.clear()
+                self._callback.on_response_timeout(
+                    RecognitionResult(
+                        RecognitionResponse.from_api_response(part)))
+                self._callback.on_close()
             else:
                 self._running = False
                 self._stream_data.clear()

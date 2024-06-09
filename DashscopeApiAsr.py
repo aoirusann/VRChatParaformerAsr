@@ -2,10 +2,10 @@
 
 import dashscope
 from dashscope.audio.asr import RecognitionCallback, RecognitionResult
-from DashscopeCustomRecognition import DashscopeCustomRecognition
+from DashscopeCustomRecognition import DashscopeCustomRecognition, DashscopeCustomRecognitionCallback
 
 
-class DefaultCallback(RecognitionCallback):
+class DefaultCallback(DashscopeCustomRecognitionCallback):
     def on_open(self) -> None:
         print('RecognitionCallback open.')
 

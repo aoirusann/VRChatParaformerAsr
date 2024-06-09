@@ -1,4 +1,4 @@
-from DashscopeApiAsr import DashscopeApiAsr, RecognitionCallback, RecognitionResult
+from DashscopeApiAsr import DashscopeApiAsr, DashscopeCustomRecognitionCallback, RecognitionResult
 import nicegui.elements
 import nicegui.elements.input
 from nicegui import ui, app
@@ -45,7 +45,7 @@ class Setting:
         for key, value in d.items():
             self.__dict__[key] = value
 
-class VRChatOscCallback(RecognitionCallback):
+class VRChatOscCallback(DashscopeCustomRecognitionCallback):
     def __init__(self, setting: Setting):
         self.setting = setting
         self.osc_client = pythonosc.udp_client.SimpleUDPClient(self.setting.vrchat_ip, self.setting.vrchat_port)
@@ -56,6 +56,9 @@ class VRChatOscCallback(RecognitionCallback):
 
     def on_close(self) -> None:
         logger.info('RecognitionCallback close.')
+
+    def on_response_timeout(self, result: RecognitionResult):
+        logger.info("RecognitionCallback is shutdown by the ASR server.")
 
     def on_error(self, result: RecognitionResult) -> None:
         logger.error(result)
