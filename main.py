@@ -12,6 +12,7 @@ import multiprocessing
 import platform
 import hashlib
 import json
+import argparse
 import logging
 import logging.handlers
 logger = logging.getLogger("VRChatParaformerAsr")
@@ -336,6 +337,19 @@ if __name__ in {"__main__", "__mp_main__"}:
 
 
     # =======================
+    # Commandline arguments
+    parser = argparse.ArgumentParser(description='VRChatParaformerAsr')
+    parser.add_argument('--title', type=str, default='VRChat Paraformer Asr', help='Page Title')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to listen on')
+    parser.add_argument('--port', type=int, default=8080, help='Port to listen on')
+    args = parser.parse_args()
+
+    title = args.title
+    host = args.host
+    port = args.port
+
+
+    # =======================
     # UI
 
     # Storage key
@@ -354,4 +368,4 @@ if __name__ in {"__main__", "__mp_main__"}:
     app.on_exception(lambda e: logger.error(f"NiceGUI exception: {e}"))
 
     # Start UI
-    ui.run(reload=False, storage_secret=storage_key)
+    ui.run(title=title, host=host, port=port, reload=False, storage_secret=storage_key)
