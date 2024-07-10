@@ -8,6 +8,7 @@ VRChatParaformerAsr会读取你的语音，再利用阿里云提供的服务将�
 3. 修改`Micro Device`，选择你使用的麦克风设备
 4. 在`Dashscope API Key`处填入API Key（获取方法见后文）
 5. 点`START`
+6. 记得VRChat里要启用OSC
 
 附带一提两个勾选框的含义分别为：
 * `OSC bypass keyboard`：不勾选的话好像会自动打开vrchat里的键盘？没测试过
