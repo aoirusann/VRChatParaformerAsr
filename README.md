@@ -3,7 +3,7 @@
 VRChatParaformerAsr会读取你的语音，再利用阿里云提供的服务将其转换成文字，最后通过OSC发送给vrchat。
 
 用法：
-1. 前往Release界面下载`.exe`文件，并执行它
+1. 前往[Release界面](https://github.com/aoirusann/VRChatParaformerAsr/releases)下载`.exe`文件，并执行它
 2. 然后浏览器应该会自动弹出访问`http://127.0.0.1:8080/`的网页（没弹出的话就自己开一个网页）：![](pic/2024-07-11-02-04-06.png)
 3. 修改`Micro Device`，选择你使用的麦克风设备
 4. 在`Dashscope API Key`处填入API Key（获取方法见后文）
@@ -15,8 +15,13 @@ VRChatParaformerAsr会读取你的语音，再利用阿里云提供的服务将�
 
 目前已知的bug：
 * 点`STOP`时有时会闪退掉
+* 还遇到什么别的bug的话请在[issues](https://github.com/aoirusann/VRChatParaformerAsr/issues)里提出，不过因为该项目只是我为朋友写的，在够用的情况下我并不一定会去修别的bug……
 
-
+另外，
+* 底层调用的模型主要是支持中文普通话，也支持一些英语
+* 如果你是别的语种的使用者或者不在国内的话，我推荐你使用[VRCT](https://github.com/misyaguziya/VRCT)或者[vrc stt](https://vrcstt.com/)
+* 本仓库的主要特点是底层调用的是阿里云专门为中文实时语音识别训练的模型（paraformer-realtime-v1），因此对中文的支持比较好，而且从国内访问的话网速很快
+  * 我考虑过要不要给VRCT写个pull request的，但是因为paraformer-realtime-v1是实时语音识别模型，而非whisper那种离线的，两者的接口差太多了，所以没办法我就只好自己重新搓了个轮子
 
 
 
