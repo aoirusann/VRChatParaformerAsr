@@ -1,4 +1,5 @@
 from DashscopeApiAsr import DashscopeApiAsr, DashscopeCustomRecognitionCallback, RecognitionResult
+from AlicloudApiTranslator import AlicloudApiTranslator
 import nicegui.elements
 import nicegui.elements.input
 from nicegui import ui, app
@@ -29,11 +30,19 @@ class Setting:
         # osc
         self.osc_bypass_keyboard = True
         self.osc_enableSFX = True
+        # translate
+        self.enable_translate = False
+        self.src_lang = "zh" # zh, en, ja, ko # https://help.aliyun.com/zh/machine-translation/support/supported-languages-and-codes?spm=api-workbench.api_explorer.0.0.3d374eecSIT7xn
+        self.dst_lang = "ja"
         # microphone: should recreate `MicCollector` after change
         self.micro_device_id = 3
-        # dashscope api: should restart`DashscopeApiAsr` after change
+        # dashscope api: should restart `DashscopeApiAsr` after change
         self.api_key = ""
         self.disfluency_removal_enabled = False
+        # alicloud api: should restart `AlicloudApiTranslator` after change
+        self.alicloud_access_key_id = ""
+        self.alicloud_access_key_secret = ""
+        self.alicloud_endpoint = 'mt.cn-hangzhou.aliyuncs.com'
 
     def copy_from(self, another: "Setting") -> None:
         for key, value in another.__dict__.items():
@@ -48,11 +57,13 @@ class Setting:
             self.__dict__[key] = value
 
 class VRChatOscCallback(DashscopeCustomRecognitionCallback):
-    def __init__(self, setting: Setting, ctx):
+    def __init__(self, setting: Setting, ctx, translator: AlicloudApiTranslator = None):
         self.setting = setting
         self.ctx = ctx
+        self.translator = translator
         self.osc_client = pythonosc.udp_client.SimpleUDPClient(self.setting.vrchat_ip, self.setting.vrchat_port)
         self.last_text = ""
+        self.last_translated_text = ""
 
     def on_open(self) -> None:
         logger.info('RecognitionCallback open.')
@@ -72,21 +83,41 @@ class VRChatOscCallback(DashscopeCustomRecognitionCallback):
         pass
 
     def on_event(self, result: RecognitionResult) -> None:
-        # Get full sentence
-        self.osc_client.send_message("/chatbox/typing", [True])
-        sen = result.get_sentence()
-        logger.debug(f'RecognitionCallback sentence: {sen}', )
-        # If the sentence is completed, update last_text
-        if result.is_sentence_end(sen):
-            # Extract the text
-            cur_text = sen["text"]
-            logger.info(f"[Transcribed] {cur_text}")
-            # Merge with the last complete text
-            text = self.last_text + "\n" + cur_text
-            self.osc_client.send_message("/chatbox/typing", [False])
-            self.osc_client.send_message("/chatbox/input", [text, self.setting.osc_bypass_keyboard, self.setting.osc_enableSFX])
-            # Update last_text
-            self.last_text = cur_text
+        try:
+            # Get full sentence
+            self.osc_client.send_message("/chatbox/typing", [True])
+            sen = result.get_sentence()
+            logger.debug(f'RecognitionCallback sentence: {sen}', )
+            # If the sentence is completed, update last_text
+            if result.is_sentence_end(sen):
+                # Extract the text
+                cur_text = sen["text"]
+                logger.info(f"[Transcribed] {cur_text}")
+                # If translator is presented, translate it
+                cur_translated_text = ""
+                if self.translator:
+                    cur_translated_text = self.translator.translate(
+                        self.setting.src_lang,
+                        self.setting.dst_lang,
+                        self.last_text,
+                        cur_text,
+                    )
+                    logger.info(f"[Translated] {cur_translated_text}")
+                # Merge with the last complete text
+                text = ""
+                if self.translator:
+                    text = f"{self.last_text}({self.last_translated_text})\n{cur_text}({cur_translated_text})"
+                else:
+                    text = f"{self.last_text}\n{cur_text}"
+                # Send to VRChat
+                self.osc_client.send_message("/chatbox/typing", [False])
+                self.osc_client.send_message("/chatbox/input", [text, self.setting.osc_bypass_keyboard, self.setting.osc_enableSFX])
+                # Update last_text
+                self.last_text = cur_text
+                self.last_translated_text = cur_translated_text
+        except Exception as e:
+            logger.error(e)
+            raise e
 
 class MicCollector:
     def __init__(self, setting: Setting):
@@ -125,7 +156,22 @@ async def ARSWorker(setting: Setting, ctx):
     mic.start()
 
     try:
-        asr_callback = VRChatOscCallback(setting, ctx)
+        # Init translator: text(src_language) -> text(dst_language)
+        translator = None
+        if setting.enable_translate:
+            try:
+                translator = AlicloudApiTranslator()
+                translator.init_client(
+                    setting.alicloud_access_key_id,
+                    setting.alicloud_access_key_secret,
+                    setting.alicloud_endpoint,
+                )
+            except Exception as e:
+                logger.error(e)
+                raise e
+
+        # Init asr: audio -> text
+        asr_callback = VRChatOscCallback(setting, ctx, translator)
         asr = DashscopeApiAsr()
         asr.start(api_key=setting.api_key, callback=asr_callback)
 
@@ -190,15 +236,55 @@ async def homepage():
     with ui.row():
         ctl_osc_bypass_keyboard = ui.checkbox("OSC bypass keyboard").tooltip("Disable if you want to open the keyboard when transcription is done.")
         ctl_osc_enableSFX = ui.checkbox("OSC enable SFX").tooltip("Disable if the sound effect when sending message is not needed.")
-    ctl_micro_device_id = ui.select(
-        options=get_micro_id2name(),
-        label="Micro Device",
-        with_input=True,
-    )
-    with ui.row():
-        ctl_api_key = ui.input(
-            label="Dashscope API Key",
+
+    with ui.card():
+        ctl_micro_device_id = ui.select(
+            options=get_micro_id2name(),
+            label="Micro Device",
+            with_input=True,
         )
+        with ui.row():
+            ctl_api_key = ui.input(
+                label="Dashscope API Key",
+            )
+
+    with ui.row():
+        ctl_enable_translate = ui.checkbox("Enable translation")
+    with ui.card():
+        with ui.row():
+            langs = {
+                "zh": "中文",
+                "en": "English",
+                "ja": "日本語",
+                "ko": "한국인",
+            }
+            ctl_src_lang = ui.select(
+                options=langs,
+                label="Source Language",
+                new_value_mode="add-unique",
+                value="zh",
+            ).tooltip("Language of your voice.")
+            ctl_dst_lang = ui.select(
+                options=langs,
+                label="Destination Language",
+                new_value_mode="add-unique",
+                value="ja",
+            ).tooltip("Language of the translated text.")
+            ui.link("Complete language code list", "https://help.aliyun.com/zh/machine-translation/support/supported-languages-and-codes?spm=api-workbench.api_explorer.0.0.3d374eecSIT7xn")
+        with ui.row():
+            ctl_alicloud_access_key_id = ui.input(
+                label="Alicloud Access Key ID"
+            )
+            ctl_alicloud_access_key_secret = ui.input(
+                label="Alicloud Access Key Secrect"
+            )
+        with ui.row():
+            ctl_alicloud_endpoint = ui.input(
+                label="Alicloud Endpoint",
+                value='mt.cn-hangzhou.aliyuncs.com',
+                placeholder='mt.cn-hangzhou.aliyuncs.com',
+            ).tooltip("Service endpoint to access. Generally no modification is necessary.")
+            ui.link("Complete endpoint list", "https://help.aliyun.com/zh/machine-translation/developer-reference/api-alimt-2018-10-12-endpoint?spm=a2c4g.11186623.0.0.1067c747e9ZNcY")
 
     with ui.row():
         btn_start = ui.button("Start", color="green")
@@ -234,6 +320,12 @@ async def homepage():
     ctl_micro_device_id.bind_value(setting, "micro_device_id")
     ctl_api_key.bind_value(setting, "api_key")
     ctl_disfluency_removal_enabled.bind_value(setting, "disfluency_removal_enabled")
+    ctl_enable_translate.bind_value(setting, "enable_translate")
+    ctl_src_lang.bind_value(setting, "src_lang")
+    ctl_dst_lang.bind_value(setting, "dst_lang")
+    ctl_alicloud_access_key_id.bind_value(setting, "alicloud_access_key_id")
+    ctl_alicloud_access_key_secret.bind_value(setting, "alicloud_access_key_secret")
+    ctl_alicloud_endpoint.bind_value(setting, "alicloud_endpoint")
 
     # Bind enabled
     ctls_enabled_when_worker_is_None: list[nicegui.elements.input.DisableableElement] = [
@@ -250,6 +342,9 @@ async def homepage():
     ]
     for ctl in ctls_disabled_when_worker_is_None:
         ctl.bind_enabled_from(ctx, "stt_worker", lambda worker: worker!=None)
+    for ctl in [ctl_src_lang, ctl_dst_lang, ctl_alicloud_access_key_id, ctl_alicloud_access_key_secret, ctl_alicloud_endpoint]:
+        ctl: nicegui.elements.input.DisableableElement
+        ctl.bind_enabled_from(setting, "enable_translate")
 
     # Bind onclicked
     async def on_clicked_load_default_setting_btn():
