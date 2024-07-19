@@ -276,7 +276,7 @@ async def homepage():
                 label="Alicloud Access Key ID"
             )
             ctl_alicloud_access_key_secret = ui.input(
-                label="Alicloud Access Key Secrect"
+                label="Alicloud Access Key Secret"
             )
         with ui.row():
             ctl_alicloud_endpoint = ui.input(
