@@ -11,7 +11,10 @@ venv
 # pyinstaller
 build
 dist
-VRChatParaformerAsr.spec
+*.spec
+
+# setting
+setting.json
 
 # log
 vrchat_paraformer_asr.log*

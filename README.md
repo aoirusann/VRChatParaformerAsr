@@ -3,26 +3,28 @@
 VRChatParaformerAsr会读取你的语音，再利用阿里云提供的服务将其转换成文字，最后通过OSC发送给vrchat。
 
 用法：
-1. 前往[Release界面](https://github.com/aoirusann/VRChatParaformerAsr/releases)下载`.exe`文件，并执行它
-2. 然后浏览器应该会自动弹出访问`http://127.0.0.1:8080/`的网页（没弹出的话就自己开一个网页）：![](pic/2024-07-19-23-20-26.png)
-3. 修改`Micro Device`，选择你使用的麦克风设备
-4. 在`Dashscope API Key`处填入Dashscope的API Key（获取方法见后文）
-5. （可选）如果需要使用翻译功能的话
-	1. 勾选`Enable translation`
-	2. 选择你的语言`Source Language`
-	3. 选择你想翻译成什么语言`Destination Language`
-	4. 在`Alicloud Access Key ID`和`Alicloud Access Key Secret`处填入阿里云的Access Key（获取方法见后文，注意和上面的`Dashscope API Key`是两回事）
-	5. `Alicloud Endpoint`通常不用管
-6. 点`START`
-7. 记得VRChat里要启用OSC
+1. 前往[Release界面](https://github.com/aoirusann/VRChatParaformerAsr/releases)下载`.exe`文件
+	* 注意是有两个`.exe`文件都要下载：`VRChatParaformerAsr_setting.exe`和`VRChatParaformerAsr.exe`
+	* 下载后请确保这两个文件位于同一个目录下
+2. 如果是第一次启动（，或者需要修改设置的话）需要先运行`VRChatParaformerAsr_setting.exe`
+	1. 运行后浏览器应该会自动弹出访问`http://127.0.0.1:8080/`的网页（没弹出的话就自己开一个网页）：![](pic/2024-08-09-22-57-26.png)
+	2. 修改`Micro Device`，选择你使用的麦克风设备
+	3. 在`Dashscope API Key`处填入Dashscope的API Key（获取方法见后文）
+	4. （可选）如果需要使用翻译功能的话
+		1. 勾选`Enable translation`
+		2. 选择你的语言`Source Language`
+		3. 选择你想翻译成什么语言`Destination Language`
+		4. 在`Alicloud Access Key ID`和`Alicloud Access Key Secret`处填入阿里云的Access Key（获取方法见后文，注意和上面的`Dashscope API Key`是两回事）
+		5. `Alicloud Endpoint`通常不用管
+	5. 点`SAVE`，此时在`VRChatParaformerAsr_setting.exe`的所在目录下应该会生成一个`setting.json`文件：![](pic/2024-08-09-22-59-01.png)
+3. 执行`VRChatParaformerAsr.exe`，应该会弹出个小黑框，挂在那里就行了
+4. 记得VRChat里要启用OSC
 
 附带一提两个勾选框的含义分别为：
 * `OSC bypass keyboard`：不勾选的话好像会自动打开vrchat里的键盘？没测试过
 * `OSC enable SFX`：不勾选的话vrchat里头上冒气泡的时候就不会有音效了
 
-目前已知的bug：
-* 点`STOP`时有时会闪退掉
-* 还遇到什么别的bug的话请在[issues](https://github.com/aoirusann/VRChatParaformerAsr/issues)里提出，不过因为该项目只是我为朋友写的，在够用的情况下我并不一定会去修别的bug……
+遇到什么bug的话请在[issues](https://github.com/aoirusann/VRChatParaformerAsr/issues)里提出，不过因为该项目只是我为朋友写的，在够用的情况下我并不一定会去修别的bug……
 
 另外，
 * 底层调用的模型主要是支持中文普通话，也支持一些英语
@@ -92,14 +94,16 @@ VRChatParaformerAsr会读取你的语音，再利用阿里云提供的服务将�
 
 1. git clone这个库
 2. `pip install -r requirements.txt`
-3. `python main.py`
+3. `python main.setting.py`：有gui的设置界面
+3. `python main.cmd.py`：纯命令行的运行时界面
 
 ## 打包
 
-安装pyinstaller，然后：
+安装pyinstaller，然后直接执行`package.bat`：
 
 ``` shell
-nicegui-pack --onefile --name "VRChatParaformerAsr" main.py
+nicegui-pack --onefile --name "VRChatParaformerAsr_setting" main.setting.py
+pyinstaller --onefile --name "VRChatParaformerAsr" main.cmd.py
 ```
 
-打包后的文件为`dist\VRChatParaformerAsr.exe`
+打包后的文件为`dist\VRChatParaformerAsr.exe`和`dist\VRChatParaformerAsr_setting.exe`

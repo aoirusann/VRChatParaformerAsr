@@ -8,8 +8,8 @@
 	* `_ssl` import error
 		* Conda is unsupported by pyinstaller: https://github.com/pyinstaller/pyinstaller/issues/7510	
 * [x] VRChat typing indicator
-* [ ] document for API key
+* [x] document for API key
 * [ ] chinese
 * [x] Handle `ResponseTimeout` bug
 	* The connection will be shutdown by the remote server if there has been no audio data sent for 60 seconds.
-* [ ] Decontruct the context when client disconnected.
+* [x] Refactor to split setting & runtime to reduce the runtime overhead (which is caused by gui mainly) (reported by LL)
