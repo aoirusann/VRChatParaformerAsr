@@ -1,3 +1,4 @@
+import time
 import os
 import threading
 from http import HTTPStatus
@@ -334,6 +335,7 @@ class DashscopeCustomRecognition(BaseApi):
         while self._running:
             while len(self._stream_data) == 0:
                 if self._running:
+                    time.sleep(0.01)
                     continue
                 else:
                     break
